@@ -12,7 +12,9 @@ namespace SudokuGame
     {
         private TextBox[,] numberBlocks;
         private SudokuLevel currentLevel;
-        private SudokuViewModel sudoku;
+        private int[,] userBoard = new int[9, 9];
+        private SudokuBoard sudokuBoard = new SudokuBoard();
+        private bool isInitializing = false;
 
         public MainWindow()
         {
@@ -42,12 +44,15 @@ namespace SudokuGame
                     };
                     // Calling the handlers to safeguard against letters and pasting in the cells
                     numberBlocks[row, col].PreviewTextInput += NumberBox_PreviewTextInput;
+                    int textChangedRow = row;
+                    int textChangedCol = col;
+                    numberBlocks[row, col].TextChanged += (s, e) => NumberBox_TextChanged(s, e, textChangedRow, textChangedCol);
                     DataObject.AddPastingHandler(numberBlocks[row, col], NumberBox_Pasting);
 
                     // Adding the functionality to navigate using arrow keys
-                    int localRow = row;
-                    int localCol = col;
-                    numberBlocks[row, col].PreviewKeyDown += (s, e) => NumberBox_PreviewKeyDown(s, e, localRow, localCol);
+                    int keyNavRow = row;
+                    int keyNavCol = col;
+                    numberBlocks[row, col].PreviewKeyDown += (s, e) => NumberBox_PreviewKeyDown(s, e, keyNavRow, keyNavCol);
 
                     // Default thin border
                     double left = 0.1, top = 0.1, right = 0.1, bottom = 0.1;
@@ -98,11 +103,14 @@ namespace SudokuGame
             }
         }
 
+        // Handler for new game creation calling the functions from the SudokuBoard class
         private void NewGame(object sender, RoutedEventArgs e)
         {
+            isInitializing = true;
+
             int[,] board = new int[9, 9];
-            FillBoard(board);
-            RemoveNumbers(board, currentLevel);
+            sudokuBoard.FillBoard(board);
+            sudokuBoard.RemoveNumbers(board, currentLevel);
 
             for (int row = 0; row < 9; row++)
             {
@@ -113,19 +121,25 @@ namespace SudokuGame
                         numberBlocks[row, col].Text = "";
                         numberBlocks[row, col].IsReadOnly = false;
                         numberBlocks[row, col].Foreground = Brushes.Black;
+                        numberBlocks[row, col].Background = Brushes.White;
+                        userBoard[row, col] = 0;
                     }
                     else
                     {
                         numberBlocks[row, col].Text = board[row, col].ToString();
                         numberBlocks[row, col].IsReadOnly = true;
                         numberBlocks[row, col].Foreground = Brushes.DarkBlue;
+                        numberBlocks[row, col].Background = Brushes.White;
+                        userBoard[row, col] = board[row, col];
                     }
                 }
             }
+
+            isInitializing = false;
         }
 
-        // Allowing navigation using arrow keys
 
+        // Allowing navigation using arrow keys
         private void NumberBox_PreviewKeyDown(object sender, KeyEventArgs e, int row, int col)
         {
             switch (e.Key)
@@ -170,61 +184,72 @@ namespace SudokuGame
             DifficultyTextBlock.Text = currentLevel.ToString().ToUpper();
         }
 
-        private bool FillBoard(int[,] board, int row = 0, int col = 0)
+        private void NumberBox_TextChanged(object sender, TextChangedEventArgs e, int row, int col)
         {
-            if (row == 9) return true;
-            if (col == 9) return FillBoard(board, row + 1, 0);
+            if (isInitializing) return;
 
-            var numbers = Enumerable.Range(1, 9).OrderBy(_ => Guid.NewGuid()).ToList();
-            foreach (var num in numbers)
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            int value = 0;
+            if (int.TryParse(textBox.Text, out value))
             {
-                if (IsSafe(board, row, col, num))
+                userBoard[row, col] = 0; // Temporarily clear for validation
+
+                bool isValid = sudokuBoard.IsUserInputValid(userBoard, row, col, value);
+                userBoard[row, col] = value; // Restore value
+
+                if (ValidationCheckbox.IsChecked == true)
                 {
-                    board[row, col] = num;
-                    if (FillBoard(board, row, col + 1)) return true;
-                    board[row, col] = 0;
+                    textBox.Background = isValid ? Brushes.White : Brushes.Red;
+                }
+                else
+                {
+                    textBox.Background = Brushes.White; // Always white if validation is off
                 }
             }
-            return false;
+            else
+            {
+                userBoard[row, col] = 0;
+                textBox.Background = Brushes.White;
+            }
         }
 
-        private bool IsSafe(int[,] board, int row, int col, int num)
+        private void ValidationCheckbox_Toggled(object sender, RoutedEventArgs e)
         {
-            for (int i = 0; i < 9; i++)
-                if (board[row, i] == num || board[i, col] == num)
-                    return false;
-
-            int startRow = row / 3 * 3, startCol = col / 3 * 3;
-            for (int i = 0; i < 3; i++)
-                for (int j = 0; j < 3; j++)
-                    if (board[startRow + i, startCol + j] == num)
-                        return false;
-
-            return true;
+            RevalidateUserBoard();
         }
 
-        private void RemoveNumbers(int[,] board, SudokuLevel level)
+        private void RevalidateUserBoard()
         {
-            int cellsToRemove = level switch
+            for (int row = 0; row < 9; row++)
             {
-                SudokuLevel.Easy => 35,
-                SudokuLevel.Medium => 45,
-                SudokuLevel.Hard => 60,
-                _ => 35
-            };
-
-            var rand = new Random();
-            while (cellsToRemove > 0)
-            {
-                int row = rand.Next(0, 9);
-                int col = rand.Next(0, 9);
-                if (board[row, col] != 0)
+                for (int col = 0; col < 9; col++)
                 {
-                    board[row, col] = 0;
-                    cellsToRemove--;
+                    var textBox = numberBlocks[row, col];
+                    if (!textBox.IsReadOnly)
+                    {
+                        int value;
+                        if (int.TryParse(textBox.Text, out value))
+                        {
+                            userBoard[row, col] = 0; // Temporarily clear for check
+                            bool isValid = sudokuBoard.IsUserInputValid(userBoard, row, col, value);
+                            userBoard[row, col] = value;
+
+                            textBox.Background = ValidationCheckbox.IsChecked == true
+                                ? (isValid ? Brushes.White : Brushes.Red)
+                                : Brushes.White;
+                        }
+                        else
+                        {
+                            userBoard[row, col] = 0;
+                            textBox.Background = Brushes.White;
+                        }
+                    }
                 }
             }
         }
+
     }
 }
 
