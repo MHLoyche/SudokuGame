@@ -55,7 +55,7 @@ namespace SudokuGame
                 SudokuLevel.Easy => 35,
                 SudokuLevel.Medium => 45,
                 SudokuLevel.Hard => 60,
-                _ => 35 // Setting default to Easy
+                _ => 35
             };
 
             // using Random to remove cells
@@ -86,7 +86,7 @@ namespace SudokuGame
                     return false;
             }
 
-            // Check 3x3 box
+            // Check 3x3 box, using integer division to find the first row and col of each 3x3 box
             int startRow = (row / 3) * 3;
             int startCol = (col / 3) * 3;
             for (int i = 0; i < 3; i++)

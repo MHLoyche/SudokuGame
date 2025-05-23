@@ -2,23 +2,51 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.ComponentModel;
+using System.Windows.Threading;
 
 namespace SudokuGame
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         private TextBox[,] numberBlocks;
         private SudokuLevel currentLevel;
         private int[,] userBoard = new int[9, 9];
         private SudokuBoard sudokuBoard = new SudokuBoard();
         private bool isInitializing = false;
 
+        private DispatcherTimer gameTimer;
+        private int elapsedSeconds;
+
+        // Formatting time to display in hours, minutes and seconds with 2 digits
+        public string Time => $"{elapsedSeconds / 3600:D2}:{(elapsedSeconds / 60) % 60:D2}:{elapsedSeconds % 60:D2}";
+
+
+
+
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = this; // Setting data context for binding time
+
+            gameTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            gameTimer.Tick += (s, e) =>
+            {
+                elapsedSeconds++;
+                OnPropertyChanged(nameof(Time));
+            };
             GenerateGridBorders();
         }
 
@@ -108,6 +136,11 @@ namespace SudokuGame
         {
             isInitializing = true;
 
+            // Reset timer
+            elapsedSeconds = 0;
+            OnPropertyChanged(nameof(Time));
+            gameTimer.Start();
+
             int[,] board = new int[9, 9];
             sudokuBoard.FillBoard(board);
             sudokuBoard.RemoveNumbers(board, currentLevel);
@@ -138,7 +171,6 @@ namespace SudokuGame
             isInitializing = false;
         }
 
-
         // Allowing navigation using arrow keys
         private void NumberBox_PreviewKeyDown(object sender, KeyEventArgs e, int row, int col)
         {
@@ -165,16 +197,6 @@ namespace SudokuGame
                     e.Handled = true;
                     break;
             }
-        }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        private void Button_Click_1(object sender, RoutedEventArgs e)
-        {
-
         }
 
         // Event handler for the difficulty slider calling on the SudokuLevel enum
@@ -248,6 +270,49 @@ namespace SudokuGame
                     }
                 }
             }
+        }
+
+
+        private void Check(object sender, RoutedEventArgs e)
+        {
+            // Verifying all cells are filled
+            for (int row = 0; row < 9; row++)
+            {
+                for (int col = 0; col < 9; col++)
+                {
+                    if (userBoard[row, col] == 0)
+                    {
+                        MessageBox.Show("The board is not completely filled!", "Check Result", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+            }
+
+            // Verifying all cells are valid
+            for (int row = 0; row < 9; row++)
+            {
+                for (int col = 0; col < 9; col++)
+                {
+                    int value = userBoard[row, col];
+
+                    // Temporarily clearing the cell to avoid false positive in validation
+                    userBoard[row, col] = 0;
+
+                    bool isValid = sudokuBoard.IsUserInputValid(userBoard, row, col, value);
+
+                    // Restoring value of cell
+                    userBoard[row, col] = value;
+
+                    if (!isValid)
+                    {
+                        MessageBox.Show($"Invalid entry found. Use the Assistance Check feature if you want help", "Check Result", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                }
+            }
+            gameTimer.Stop(); 
+
+            MessageBox.Show("Congratulations! The Sudoku board is solved correctly!", "Check Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
     }

@@ -47,14 +47,13 @@
             <Button Content="New Game" Margin="10" Click="NewGame"></Button>
             <TextBlock x:Name="DifficultyTextBlock" Text="EASY" HorizontalAlignment="Center" FontFamily="Segoe UI" FontWeight="Bold"/>
             <Slider x:Name="DifficultySlider" TickPlacement="TopLeft" IsSnapToTickEnabled="True" Maximum="2" TickFrequency="1" ValueChanged="DifficultySlider_OnValueChanged"></Slider>
-            <Button Content="Check" Margin="10" Click="Button_Click"></Button>
+            <Button Content="Check for finished" Margin="10" Click="Check"></Button>
             <CheckBox x:Name="ValidationCheckbox"
                       Content="Assistance Check"
                       IsChecked="False"
                       Margin="10"
                       Checked="ValidationCheckbox_Toggled"
                       Unchecked="ValidationCheckbox_Toggled"/>
-            <Button Content="Hint" Margin="10" IsEnabled="False" Click="Button_Click_1"></Button>
         </StackPanel>
 
         <StatusBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" FontFamily="Segoe UI" FontWeight="Bold">
@@ -64,13 +63,8 @@
                     <ColumnDefinition Width="100" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Moves:  " />
-                    <TextBlock Text="{Binding Moves}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="Time:  " />
-                    <TextBlock Text="{Binding Time}" />
+                    <TextBlock Text="Time:  " HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Time}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
         </StatusBar>
